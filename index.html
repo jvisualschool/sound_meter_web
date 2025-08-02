@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 소음 측정기 Sound Meter </title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        .orbitron { font-family: 'Orbitron', monospace; }
+        
+        .pulse-ring {
+            animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(0.33); }
+            80%, 100% { opacity: 0; }
+        }
+        
+        .noise-meter {
+            background: conic-gradient(from 0deg, #ef4444 0deg, #f97316 60deg, #eab308 120deg, #22c55e 180deg, #3b82f6 240deg, #8b5cf6 300deg, #ef4444 360deg);
+            border-radius: 50%;
+            position: relative;
+        }
+        
+        .noise-level-bar {
+            transition: width 0.1s ease-out;
+            background: linear-gradient(90deg, #22c55e 0%, #eab308 50%, #f97316 75%, #ef4444 100%);
+        }
+        
+        .glow {
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { box-shadow: 0 0 20px #3b82f6; }
+            to { box-shadow: 0 0 40px #3b82f6, 0 0 60px #3b82f6; }
+        }
+        
+        .record-flash {
+            animation: flash 0.5s ease-in-out;
+        }
+        
+        @keyframes flash {
+            0%, 100% { background-color: transparent; }
+            50% { background-color: rgba(239, 68, 68, 0.2); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen text-white">
+    <div class="container mx-auto px-4 py-8">
+        <!-- 헤더 -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl md:text-6xl font-bold orbitron mb-2">
+                <i class="fas fa-volume-up text-blue-400 mr-4"></i>
+                소음 측정기 Sound Meter 
+            </h1>
+            <p class="text-lg text-gray-300">멋진 발표 = 엄청난 함성 </p>
+        </div>
+
+        <!-- 메인 측정 영역 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- 실시간 측정기 -->
+            <div class="bg-black bg-opacity-30 backdrop-filter backdrop-blur-lg rounded-3xl p-8 border border-gray-700">
+                <div class="text-center mb-6">
+                    <button id="startBtn" class="bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-full text-xl font-semibold transition-all duration-300 transform hover:scale-105 glow">
+                        <i class="fas fa-microphone mr-2"></i>
+                        측정 시작
+                    </button>
+                    <button id="stopBtn" class="bg-red-600 hover:bg-red-700 px-8 py-4 rounded-full text-xl font-semibold transition-all duration-300 transform hover:scale-105 hidden ml-4">
+                        <i class="fas fa-stop mr-2"></i>
+                        측정 중지
+                    </button>
+                </div>
+
+                <!-- 원형 데시벨 미터 -->
+                <div class="relative w-64 h-64 mx-auto mb-6">
+                    <div class="noise-meter w-full h-full flex items-center justify-center">
+                        <div class="bg-black bg-opacity-80 w-48 h-48 rounded-full flex flex-col items-center justify-center">
+                            <div id="decibelValue" class="text-4xl font-bold orbitron text-green-400">0</div>
+                            <div class="text-sm text-gray-300">dB</div>
+                        </div>
+                    </div>
+                    <div id="pulseRing" class="absolute inset-0 border-4 border-blue-400 rounded-full pulse-ring opacity-0"></div>
+                </div>
+
+                <!-- 레벨 바 -->
+                <div class="mb-6">
+                    <div class="bg-gray-700 h-6 rounded-full overflow-hidden">
+                        <div id="levelBar" class="noise-level-bar h-full w-0 rounded-full"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-400 mt-1">
+                        <span>0 dB</span>
+                        <span>60 dB</span>
+                        <span>120 dB</span>
+                    </div>
+                </div>
+
+                <!-- 상태 정보 -->
+                <div class="grid grid-cols-3 gap-4 text-center">
+                    <div class="bg-gray-800 rounded-lg p-3">
+                        <div id="currentLevel" class="text-2xl font-bold text-blue-400 orbitron">0</div>
+                        <div class="text-xs text-gray-400">현재</div>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-3">
+                        <div id="maxLevel" class="text-2xl font-bold text-red-400 orbitron">0</div>
+                        <div class="text-xs text-gray-400">최대</div>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-3">
+                        <div id="avgLevel" class="text-2xl font-bold text-yellow-400 orbitron">0</div>
+                        <div class="text-xs text-gray-400">평균</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 실시간 차트 -->
+            <div class="bg-black bg-opacity-30 backdrop-filter backdrop-blur-lg rounded-3xl p-8 border border-gray-700">
+                <h3 class="text-2xl font-bold mb-4 text-center">
+                    <i class="fas fa-chart-line text-green-400 mr-2"></i>
+                    실시간 분석
+                </h3>
+                <div style="height: 300px;">
+                    <canvas id="realtimeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 팀 기록 영역 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- 팀 등록 -->
+            <div class="bg-black bg-opacity-30 backdrop-filter backdrop-blur-lg rounded-3xl p-8 border border-gray-700">
+                <h3 class="text-2xl font-bold mb-6 text-center">
+                    <i class="fas fa-users text-purple-400 mr-2"></i>
+                    팀 등록
+                </h3>
+                <div class="space-y-4">
+                    <input type="text" id="teamName" placeholder="팀 이름을 입력하세요" 
+                           class="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500">
+                    <button id="recordBtn" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-save mr-2"></i>
+                        최고 기록 저장
+                    </button>
+                    <button id="clearBtn" class="w-full bg-gray-600 hover:bg-gray-700 px-6 py-3 rounded-lg font-semibold transition-all duration-300">
+                        <i class="fas fa-trash mr-2"></i>
+                        전체 기록 삭제
+                    </button>
+                </div>
+            </div>
+
+            <!-- 리더보드 -->
+            <div class="bg-black bg-opacity-30 backdrop-filter backdrop-blur-lg rounded-3xl p-8 border border-gray-700">
+                <h3 class="text-2xl font-bold mb-6 text-center">
+                    <i class="fas fa-trophy text-yellow-400 mr-2"></i>
+                    리더보드
+                </h3>
+                <div id="leaderboard" class="space-y-3">
+                    <div class="text-center text-gray-400">아직 기록이 없습니다</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 안전 가이드 -->
+        <div class="mt-8 bg-yellow-900 bg-opacity-50 border border-yellow-600 rounded-lg p-4">
+            <div class="flex items-center mb-2">
+                <i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>
+                <span class="font-semibold">안전 가이드</span>
+            </div>
+            <ul class="text-sm text-yellow-200 space-y-1">
+                <li>• 120dB 이상은 청력에 해로울 수 있습니다</li>
+                <li>• 측정 시간은 10초 이내로 제한하세요</li>
+                <li>• 마이크와 적절한 거리를 유지하세요</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        class NoiseMeter {
+            constructor() {
+                this.audioContext = null;
+                this.analyser = null;
+                this.microphone = null;
+                this.dataArray = null;
+                this.isRecording = false;
+                this.maxDecibel = 0;
+                this.measurements = [];
+                this.chart = null;
+                
+                this.initializeChart();
+                this.loadLeaderboard();
+                this.bindEvents();
+            }
+
+            initializeChart() {
+                const ctx = document.getElementById('realtimeChart').getContext('2d');
+                this.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: '데시벨 (dB)',
+                            data: [],
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: 'white' }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: 'white' },
+                                grid: { color: 'rgba(255,255,255,0.1)' }
+                            },
+                            y: {
+                                min: 0,
+                                max: 120,
+                                ticks: { color: 'white' },
+                                grid: { color: 'rgba(255,255,255,0.1)' }
+                            }
+                        },
+                        animation: { duration: 0 }
+                    }
+                });
+            }
+
+            async startRecording() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.analyser = this.audioContext.createAnalyser();
+                    this.microphone = this.audioContext.createMediaStreamSource(stream);
+                    
+                    this.analyser.fftSize = 256;
+                    this.microphone.connect(this.analyser);
+                    
+                    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                    
+                    this.isRecording = true;
+                    this.maxDecibel = 0;
+                    this.measurements = [];
+                    
+                    document.getElementById('startBtn').classList.add('hidden');
+                    document.getElementById('stopBtn').classList.remove('hidden');
+                    document.getElementById('pulseRing').style.opacity = '1';
+                    
+                    this.updateMeter();
+                } catch (error) {
+                    alert('마이크 접근 권한이 필요합니다.');
+                    console.error('Error accessing microphone:', error);
+                }
+            }
+
+            stopRecording() {
+                this.isRecording = false;
+                
+                if (this.microphone) {
+                    this.microphone.disconnect();
+                }
+                if (this.audioContext) {
+                    this.audioContext.close();
+                }
+                
+                document.getElementById('startBtn').classList.remove('hidden');
+                document.getElementById('stopBtn').classList.add('hidden');
+                document.getElementById('pulseRing').style.opacity = '0';
+            }
+
+            updateMeter() {
+                if (!this.isRecording) return;
+
+                this.analyser.getByteFrequencyData(this.dataArray);
+                
+                // RMS 계산
+                let sum = 0;
+                for (let i = 0; i < this.dataArray.length; i++) {
+                    sum += this.dataArray[i] * this.dataArray[i];
+                }
+                const rms = Math.sqrt(sum / this.dataArray.length);
+                
+                // 데시벨 변환 (대략적인 변환)
+                const decibel = Math.max(0, Math.min(120, (rms / 255) * 120));
+                
+                this.measurements.push(decibel);
+                if (this.measurements.length > 100) {
+                    this.measurements.shift();
+                }
+                
+                // 최대값 업데이트
+                if (decibel > this.maxDecibel) {
+                    this.maxDecibel = decibel;
+                }
+                
+                // 평균값 계산
+                const average = this.measurements.reduce((a, b) => a + b, 0) / this.measurements.length;
+                
+                this.updateDisplay(decibel, this.maxDecibel, average);
+                this.updateChart(decibel);
+                
+                requestAnimationFrame(() => this.updateMeter());
+            }
+
+            updateDisplay(current, max, avg) {
+                const decibelElement = document.getElementById('decibelValue');
+                const currentElement = document.getElementById('currentLevel');
+                const maxElement = document.getElementById('maxLevel');
+                const avgElement = document.getElementById('avgLevel');
+                const levelBar = document.getElementById('levelBar');
+                
+                const displayValue = Math.round(current);
+                decibelElement.textContent = displayValue;
+                currentElement.textContent = displayValue;
+                maxElement.textContent = Math.round(max);
+                avgElement.textContent = Math.round(avg);
+                
+                // 레벨 바 업데이트
+                const barWidth = (current / 120) * 100;
+                levelBar.style.width = barWidth + '%';
+                
+                // 색상 변경
+                if (current > 100) {
+                    decibelElement.className = 'text-4xl font-bold orbitron text-red-400';
+                } else if (current > 80) {
+                    decibelElement.className = 'text-4xl font-bold orbitron text-yellow-400';
+                } else {
+                    decibelElement.className = 'text-4xl font-bold orbitron text-green-400';
+                }
+            }
+
+            updateChart(decibel) {
+                const now = new Date().toLocaleTimeString();
+                
+                this.chart.data.labels.push(now);
+                this.chart.data.datasets[0].data.push(decibel);
+                
+                if (this.chart.data.labels.length > 20) {
+                    this.chart.data.labels.shift();
+                    this.chart.data.datasets[0].data.shift();
+                }
+                
+                this.chart.update('none');
+            }
+
+            recordTeam() {
+                const teamName = document.getElementById('teamName').value.trim();
+                if (!teamName) {
+                    alert('팀 이름을 입력해주세요.');
+                    return;
+                }
+                
+                if (this.maxDecibel === 0) {
+                    alert('먼저 소음을 측정해주세요.');
+                    return;
+                }
+                
+                const teams = JSON.parse(localStorage.getItem('noiseTeams') || '[]');
+                const existingTeam = teams.find(team => team.name === teamName);
+                
+                if (existingTeam) {
+                    if (this.maxDecibel > existingTeam.score) {
+                        existingTeam.score = Math.round(this.maxDecibel);
+                        existingTeam.timestamp = new Date().toLocaleString();
+                    } else {
+                        alert('기존 기록보다 낮습니다.');
+                        return;
+                    }
+                } else {
+                    teams.push({
+                        name: teamName,
+                        score: Math.round(this.maxDecibel),
+                        timestamp: new Date().toLocaleString()
+                    });
+                }
+                
+                localStorage.setItem('noiseTeams', JSON.stringify(teams));
+                this.loadLeaderboard();
+                
+                // 플래시 효과
+                document.body.classList.add('record-flash');
+                setTimeout(() => document.body.classList.remove('record-flash'), 500);
+                
+                document.getElementById('teamName').value = '';
+                alert(`${teamName} 팀 기록이 저장되었습니다! (${Math.round(this.maxDecibel)}dB)`);
+            }
+
+            loadLeaderboard() {
+                const teams = JSON.parse(localStorage.getItem('noiseTeams') || '[]');
+                teams.sort((a, b) => b.score - a.score);
+                
+                const leaderboard = document.getElementById('leaderboard');
+                
+                if (teams.length === 0) {
+                    leaderboard.innerHTML = '<div class="text-center text-gray-400">아직 기록이 없습니다</div>';
+                    return;
+                }
+                
+                const medals = ['🥇', '🥈', '🥉'];
+                leaderboard.innerHTML = teams.map((team, index) => `
+                    <div class="flex items-center justify-between bg-gray-800 rounded-lg p-4 ${index < 3 ? 'border border-yellow-500' : ''}">
+                        <div class="flex items-center">
+                            <span class="text-2xl mr-3">${medals[index] || '🏅'}</span>
+                            <div>
+                                <div class="font-semibold">${team.name}</div>
+                                <div class="text-sm text-gray-400">${team.timestamp}</div>
+                            </div>
+                        </div>
+                        <div class="text-2xl font-bold orbitron ${team.score > 100 ? 'text-red-400' : team.score > 80 ? 'text-yellow-400' : 'text-green-400'}">
+                            ${team.score} dB
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            clearLeaderboard() {
+                if (confirm('모든 기록을 삭제하시겠습니까?')) {
+                    localStorage.removeItem('noiseTeams');
+                    this.loadLeaderboard();
+                }
+            }
+
+            bindEvents() {
+                document.getElementById('startBtn').addEventListener('click', () => this.startRecording());
+                document.getElementById('stopBtn').addEventListener('click', () => this.stopRecording());
+                document.getElementById('recordBtn').addEventListener('click', () => this.recordTeam());
+                document.getElementById('clearBtn').addEventListener('click', () => this.clearLeaderboard());
+                
+                document.getElementById('teamName').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.recordTeam();
+                    }
+                });
+            }
+        }
+
+        // 애플리케이션 시작
+        window.addEventListener('load', () => {
+            new NoiseMeter();
+        });
+    </script>
+</body>
+</html>
