@@ -1,3 +1,5 @@
+![미리보기](https://github.com/jvisualschool/sound_meter_web/blob/main/screenshot.png)
+
 # 🎯 소음 측정기 Sound Meter
 
 실시간 소음 측정과 팀별 기록 관리를 제공하는 웹 애플리케이션입니다. 발표나 이벤트에서 팀별 함성 크기를 재미있게 겨룰 수 있습니다.
